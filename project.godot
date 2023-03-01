@@ -1,0 +1,42 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=4
+
+[application]
+
+config/name="#[ddat-gpf.gamefilemgr] Game File Manager"
+config/description="Game Progress File managing project workspace"
+run/main_scene="res://_dev/placeholder_main.tscn"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="ddat_framework"
+config/icon="res://_dev/ddat_icon.png"
+
+[autoload]
+
+GlobalData="*res://src/autoload/global_data.gd"
+GlobalDebug="*res://src/autoload/global_debug.gd"
+GlobalDevTools="*res://src/autoload/global_devtools.tscn"
+GlobalInput="*res://src/autoload/global_input.gd"
+
+[debug]
+
+settings/stdout/verbose_stdout=true
+
+[display]
+
+window/size/width=1920
+window/size/height=1080
+
+[editor]
+
+script_templates_search_path="res://_dev/default_scripts"
+
+[logging]
+
+file_logging/enable_file_logging=true
