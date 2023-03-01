@@ -8,6 +8,22 @@
 
 config_version=4
 
+_global_script_classes=[ {
+"base": "Resource",
+"class": "GameProgressFile",
+"language": "GDScript",
+"path": "res://src/file_manager/classes/class_game_progress_file.gd"
+}, {
+"base": "MarginContainer",
+"class": "SaveFileElement",
+"language": "GDScript",
+"path": "res://src/file_manager/game_file_load_dialog/save_file_ui_element.gd"
+} ]
+_global_script_class_icons={
+"GameProgressFile": "",
+"SaveFileElement": ""
+}
+
 [application]
 
 config/name="#[ddat-gpf.gamefilemgr] Game File Manager"
@@ -23,6 +39,7 @@ GlobalData="*res://src/autoload/global_data.gd"
 GlobalDebug="*res://src/autoload/global_debug.gd"
 GlobalDevTools="*res://src/autoload/global_devtools.tscn"
 GlobalInput="*res://src/autoload/global_input.gd"
+GlobalProgression="*res://src/file_manager/autoload/global_progression.gd"
 
 [debug]
 

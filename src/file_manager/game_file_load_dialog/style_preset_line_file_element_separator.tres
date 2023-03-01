@@ -1,0 +1,7 @@
+[gd_resource type="StyleBoxLine" format=2]
+
+[resource]
+color = Color( 0.686275, 0.686275, 0.686275, 0.0980392 )
+grow_begin = -50.0
+grow_end = -50.0
+thickness = 5
