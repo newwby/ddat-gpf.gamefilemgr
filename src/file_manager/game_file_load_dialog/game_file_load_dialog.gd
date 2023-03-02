@@ -22,6 +22,8 @@ var listed_save_file_elements := 0
 
 # when a file is flagged for deletion the save file element is stored briefly
 var file_delete_request: SaveFileElement
+# during process of file deletion user input is blocked
+var is_deletion_process_active := false
 
 # node references
 #
@@ -55,6 +57,8 @@ onready var file_delete_popup_cancel_button_node =\
 # public methods
 
 
+# open game file load dialog with this method, don't just set it visible
+# or it won't initialise save file elements
 func open_game_file_dialog():
 	popup_animator.play_backwards("panel_fly_out")
 	# should return arg "panel_fly_out"
@@ -141,6 +145,10 @@ func _create_new_save_file_element(arg_save_file: GameProgressFile):
 # should check the iterant (see globalProgression._preload) and find the next
 # unused number, then create the save file there
 func _on_game_file_dialog_start_new_save_file():
+	if is_deletion_process_active:
+		GlobalDebug.log_error(SCRIPT_NAME, "_delete_save_file",
+				"attempt to create save file whilst another is being deleted")
+		return
 	var new_save = GlobalProgression.create_game_file()
 	if new_save != null:
 		_create_new_save_file_element(new_save)
@@ -152,12 +160,20 @@ func _on_game_file_dialog_start_new_save_file():
 
 # closes the fileLoadDialog and emits signal dev can use to load game proper
 func _on_save_file_chosen():
+	if is_deletion_process_active:
+		GlobalDebug.log_error(SCRIPT_NAME, "_delete_save_file",
+				"attempt to load save file whilst another is being deleted")
+		return
+	# animate menu close
 	# should return arg "panel_fly_out"
 	popup_animator.play("panel_fly_out")
+	
 	# looks weird if file has a playtime of 0 seconds and a different
 	# 'last played' datetimestamp, so add a second when loaded
-	if GlobalProgression.loaded_save_file.total_playtime == 0:
-		GlobalProgression.loaded_save_file.total_playtime += 1
+	# removed as it is replicating the problem but with a 1 second base instead
+#	if GlobalProgression.loaded_save_file.total_playtime == 0:
+#		GlobalProgression.loaded_save_file.total_playtime += 1
+
 	# write file so it gains the modified datetimestamp
 	GlobalProgression.save_active_game_file()
 	yield(popup_animator, "animation_finished")
@@ -165,15 +181,20 @@ func _on_save_file_chosen():
 
 
 func _on_save_file_delete_request(arg_save_file_element_ref: SaveFileElement):
-	pass
 	file_delete_request = arg_save_file_element_ref
 	_disable_load_dialog_buttons(true)
 	file_delete_confirmation_popup_node.popup()
 	file_delete_popup_cancel_button_node.grab_focus()
 
+
 func _delete_save_file():
+	if is_deletion_process_active:
+		GlobalDebug.log_error(SCRIPT_NAME, "_delete_save_file",
+				"attempt to delete save file whilst another is being deleted")
+		return
 	# block all user input whilst the file deletion process starts
-	GlobalInput.is_input_captured.set_condition(SCRIPT_NAME, true)
+#	GlobalInput.is_input_captured.set_condition(SCRIPT_NAME, true)
+	is_deletion_process_active = true
 	
 	#//TODO migrate this block to ddat-gpf.core.globalData
 	var full_deletion_path := ""
@@ -210,7 +231,8 @@ func _delete_save_file():
 		GlobalDebug.log_error(SCRIPT_NAME, "_delete_save_file",
 				"file passed for deletion not in loadDialog")
 
-	GlobalInput.is_input_captured.clear_condition(SCRIPT_NAME)
+#	GlobalInput.is_input_captured.clear_condition(SCRIPT_NAME)
+	is_deletion_process_active = false
 
 
 func _disable_load_dialog_buttons(is_disabled: bool = true):
