@@ -84,6 +84,7 @@ custom_styles/pressed = ExtResource( 12 )
 custom_styles/focus = ExtResource( 11 )
 custom_styles/disabled = ExtResource( 16 )
 custom_styles/normal = ExtResource( 13 )
+disabled = true
 text = "Create New Save File"
 
 [node name="HSeparator" type="HSeparator" parent="Panel/Margin/ScrollContainer/SaveFileContainer"]

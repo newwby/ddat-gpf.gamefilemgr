@@ -64,6 +64,7 @@ func open_game_file_dialog():
 	# should return arg "panel_fly_out"
 	yield(popup_animator, "animation_finished")
 	# if there aren't any game files, do nowt
+	new_save_file_button_node.disabled = false
 	new_save_file_button_node.grab_focus()
 	if GlobalProgression.all_game_files.empty():
 		return
