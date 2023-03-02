@@ -28,7 +28,8 @@ const VERBOSE_LOGGING := true
 # the progress file assigned to this save file element
 # the save file element will do nothing if there is no progress file
 # warning-ignore:unused_class_variable
-var my_progress_file: GameProgressFile setget _set_my_progress_file
+var my_progress_file: GlobalProgression.GAME_SAVE_CLASS\
+		setget _set_my_progress_file
 
 # for save button label
 var my_save_label_id := 0
@@ -77,7 +78,7 @@ class FileInfoElement:
 # setters and getters
 
 
-func _set_my_progress_file(value: GameProgressFile):
+func _set_my_progress_file(value: GlobalProgression.GAME_SAVE_CLASS):
 	my_progress_file = value
 	if my_progress_file != null:
 		_build_file_info_elements()
@@ -93,8 +94,6 @@ func _ready():
 	# only show this save file element if it is valid
 	if my_progress_file == null:
 		self.visible = false
-	# for testing only
-#	init_save_file_element(GameProgressFile.new())
 
 
 # temp label building solution (see 'labels_to_build' commenting)
@@ -123,8 +122,10 @@ func _process(_delta):
 
 # try not to call this method until the save file ui element is in the tree
 # when ready to use this save file element, initialise it with this method
-##param1 is the gameProgressFile to load
-func init_save_file_element(arg_progfile: GameProgressFile, arg_save_id: int):
+##param1 is the save file to load
+func init_save_file_element(
+		arg_progfile: GlobalProgression.GAME_SAVE_CLASS,
+		arg_save_id: int):
 	my_save_label_id = arg_save_id
 	self.my_progress_file = arg_progfile
 	self.visible = true

@@ -48,8 +48,7 @@ onready var file_delete_popup_cancel_button_node =\
 
 
 #func _ready():
-#	var new_save = GameProgressFile.new()
-#	_create_new_save_resource(new_save)
+#	pass
 
 
 ##############################################################################
@@ -71,7 +70,7 @@ func open_game_file_dialog():
 	
 	# otherwise get the files and add new save file elements
 	for save_file in GlobalProgression.all_game_files:
-		if save_file is GameProgressFile:
+		if save_file is GlobalProgression.GAME_SAVE_CLASS:
 			_create_new_save_file_element(save_file)
 	
 #	new_save_file_button_node.grab_click_focus()
@@ -82,42 +81,11 @@ func open_game_file_dialog():
 # private methods
 
 
-#//DERPECATED as functionality is replicated in globalProgression
-#//(see GlobalProgression.create_game_file)
-#func _create_new_save_resource(arg_new_save: GameProgressFile):
-#	#//TODO add get date created (and add date modified to resaving)
-#	#TODO remove this test line
-#	arg_new_save.total_playtime = 50
-#
-#	var save_id := 1
-#	var does_save_id_exist := true
-#	var save_path =\
-#			GlobalData.DATA_PATHS[GlobalData.DATA_PATH_PREFIXES.GAME_SAVE]
-#	while does_save_id_exist == true:
-#		does_save_id_exist =\
-#				GlobalData.validate_file(
-#					save_path+"save"+str(save_id)+".tres"
-#				)
-#		if does_save_id_exist == true:
-#			save_id += 1
-#
-#	if does_save_id_exist == false:
-#		if GlobalData.save_resource(
-#			save_path,
-#			"save"+str(save_id)+".tres",
-#			arg_new_save
-#		) == OK:
-#			print("new save recorded at {path}".format({
-#				"path": save_path+"save"+str(save_id)+".tres"
-#			}))
-#		assert(typeof(GlobalProgression.all_game_files) == TYPE_ARRAY)
-#		GlobalProgression.all_game_files.append(arg_new_save)
-
-
-# arg_save_file is the GameProgressFile used to load the player's save state
-# (GameProgressFiles track general game progression stats)
+# arg_save_file is an object of the GlobalProgression.GAME_SAVE_CLASS
+# used to load the player's save state
 # arg_save_id is the id given to the game_meta_load_dialog's save file label
-func _create_new_save_file_element(arg_save_file: GameProgressFile):
+func _create_new_save_file_element(
+			arg_save_file: GlobalProgression.GAME_SAVE_CLASS):
 	listed_save_file_elements += 1
 	var new_save_file_element = save_file_element_scene_default.duplicate()
 	save_file_container_node.call_deferred("add_child", new_save_file_element)

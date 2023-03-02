@@ -43,7 +43,7 @@ const OPTION_ENABLE_GAME_FILE_MANAGER := true
 # if set shows an animated saving icon in corner of screen
 const OPTION_SHOW_SAVE_ICON_CANVAS := true
 
-# if set, and the GameProgressFile has the property 'total_playtime', the
+# if set, and the save file class has the property 'total_playtime', the
 # globalProgression singleton will auto-instantiate a timer node and use it
 # to update the second count value of the total playtime property.
 const OPTION_TRACK_TOTAL_PLAY_TIME := true
@@ -55,6 +55,12 @@ const OPTION_AUTOSAVE_INTERVAL := 15.0
 # the total number of save files that can be recorded in the user data folder
 # acts as a break in iterator for create_game_file method
 const OPTION_MAXIMUM_SAVE_FILES := 100
+
+# developers can make custom save file classes for their game by extending
+# GameProgressFile and then replacing the class reference here.
+# This allows for future gamefilemgr updates to overwrite game progress file
+# without users having to redo their own changes.
+const GAME_SAVE_CLASS = GameProgressFile
 
 const SAVE_ICON_CANVAS_SCENE_PATH :=\
 		"res://src/file_manager/save_canvas/canvas_save_notification.tscn"
@@ -78,7 +84,7 @@ var all_game_files := []
 # the active save file loaded
 # should be unloaded when game meta transitions out
 # warning-ignore:unused_class_variable
-var loaded_save_file: GameProgressFile setget _set_loaded_save_file
+var loaded_save_file: GAME_SAVE_CLASS setget _set_loaded_save_file
 
 #10. private variables
 #11. onready variables
@@ -88,7 +94,7 @@ var loaded_save_file: GameProgressFile setget _set_loaded_save_file
 # setget
 
 # start the playtime tracker if it has been instantiated
-func _set_loaded_save_file(arg_value):
+func _set_loaded_save_file(arg_value: GAME_SAVE_CLASS):
 	loaded_save_file = arg_value
 	if total_play_time_tracker_node != null:
 		total_play_time_tracker_node.stop()
@@ -123,7 +129,7 @@ func create_game_file():
 				"create game file called whilst game file manager disabled")
 		return
 	
-	var new_save_file = GameProgressFile.new()
+	var new_save_file = GAME_SAVE_CLASS.new()
 	
 	# get the save path
 	var save_id := 1
