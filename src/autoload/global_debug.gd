@@ -12,43 +12,10 @@ extends GameGlobal
 # DEPENDENCIES
 # Set as an autoload *BEFORE* DDAT_Core.GlobalData
 # Set as your first autoload, or as early as you can.
-#
 
 # TODO
-
 #// add variation of logError that is just for minor errors (never pushes)
-
-#// instantiate and ready/setup/validate debug info overlay on startup
-#// write tests for # log_error() # log_success() and update_debug_info()
-#// update method returns for -> void and other in globalDebug
-#// update method returns for -> void and other in infoOverlay also
-
-# [globalDebug sample scene]
-#include log_error prints, log_success prints,
-# verbose_logging arguments (comment explaining why again, ref log_success),
-# behaviour of debugInfoOverlay via tracking data like player input, time since scene started
-# behaviour/implementation devMode action buttons and devMode command line,
-# scene text background showing what key to press to call debugOverlay or devModeMenu
-
-# [debug stat tracking panel feature list]
-# - dev uses signal to update a dict with name (key) and value
-# - info panel updates automatically whenever the dict data changes
-# - info panel alignment and instantiation (under canvas layer) done as part of global debug
-#	- info panel orders itself alphabetically
-#	- info panel inits canvas layer scaled to base project resolution but dev can override
-# - option(oos) category organisation; default blank enum dev can customise
-#	- info panel gets subheadings & dividers, empty category == hide
-# - globalDebug adds action under F1 (default) for showing panel (this auto-behaviour can be overriden)
-#
-# [debug action menu feature list]
-# - disclaimer at top of menu informing devs to add buttons if none are present
-# - command line input for written dev commands
-# - keyboard/input typing solution as part of ddat_core
-# - dict to add a new method, key is button text and value is method name in file
-# - after dev updates dict they add a method to be called when button is pressed
-# - buttons without found methods aren't shown when panel is called
-# - globalDebug adds action under F2 (default0 for showing debug action panel (auto-behaviour, can be overriden)
-#
+#// add optional binds for devCommand signals
 
 ##############################################################################
 
@@ -60,8 +27,19 @@ extends GameGlobal
 # visible ingame. This is useful to get feedback in unstable release builds.
 signal update_debug_overlay_item(item_key, item_value)
 
+# signals to manage the devActionMenu via globalDebug methods
+signal add_new_dev_command(devcmd_id, add_action_button)
+# warning-ignore:unused_signal
+signal remove_dev_command(devcmd_id)
+
 # for passing to error logging
 const SCRIPT_NAME := "GlobalDebug"
+
+#//REVIEW - may be adding unnecessary complexity, could just add a check
+# that the signal doesn't already exist when trying to add a dev comamnd
+#
+# all signals passed via add_dev_command prefix themselves with this string
+#const DEV_COMMAND_SIGNAL_PREFIX := "dev_"
 
 # developer flag, if set then all errors called through the log_error method
 # will pause project execution through a false assertion (this functionality
@@ -92,15 +70,10 @@ const FORCE_SUCCESS_LOGGING_IN_RELEASE_BUILDS := false
 # game performance. Try to identify excessive calls instead of relying on this.
 const OVERRIDE_DISABLE_ALL_LOGGING := false
 
-#// DEPRECATED as now unused
-# has the dev debug (info) overlay connected with the globalDebug singleton
-#var is_dev_debug_overlay_connected := false
-# has the dev action menu connected with the globalDebug singleton
-#var is_dev_action_menu_connected := false
-# reference to the dev debug (info) overlay, once connection has been made
-#var dev_debug_overlay_node: DevDebugOverlay
-# reference to the dev action menu, once connection has been made
-#var dev_action_menu_node: DevActionMenu
+# as with the constant OVERRIDE_DISABLE_ALL_LOGGING, this variable denies
+# all logging calls. It is set and unset as part of the log_test method.
+# Many unit tests will purposefully 
+var _is_test_running = false
 
 ###############################################################################
 
@@ -135,30 +108,95 @@ func _ready():
 
 ###############################################################################
 
-#// DEPRECATED since devDebugOverlay can just connect to globalDebug signals
 
-## this method is called by the dev debug overlay to establish a connection
-## arg is the node to set as the dev debug overlay for globalDebug
-#func establish_dev_debug_overlay(caller: DevDebugOverlay):
-#	# if this has already been run successfully, ignore
-#	if is_dev_debug_overlay_connected:
-#		return OK
-#
-#
-#	# if the dev debug overlay was already set once, ignore
-#	# do not attempt to set more than one node as the dev debug overlay
-#	if dev_debug_overlay_node != null:
-#		return ERR_ALREADY_EXISTS
-#
-#	# if this is the first caller then set as the dev debug overlay
-#	dev_debug_overlay_node = caller
-#	# establish connection of associated method
-#	connect("update_debug_info_overlay",
-#			dev_debug_overlay_node, "_update_debug_item_container")
-#	is_dev_debug_overlay_connected = true
+# method to establish a new dev command (and, potentially, a new action button)
+# 1) creates passed string as a signal on GlobalDebug
+# 2) once signal exists (or if did already) connects the new signal to caller
+# 3) connects tree_exited on caller to remove dev command method
+# 4) creates devCommand struct in devActionMenu - if typed/pressed calls signal
+# [Usage]
+# Call add_dev_command from on_ready() on any node with a method you wish
+# to add as a dev_command
+# [method params as follows]
+##1, signal_id, is the string identifier of the signal created on globalDebug
+##2, caller, is the node whom the signal connects to
+##3, called_method, is the string name of the method (on caller) connected to
+#	by the devCommand. When the command is typed on the devActionMenu, or the
+#	corresponding devActionMenu button is pressed, this is the activated method
+##4, add_action_button, is passed with the siganl to create a devCommand object
+#	on the devActionMenu - if true a button will be created on the menu for
+#	ease of activating the command. If false it will be via text input only.
+func add_dev_command(
+	signal_id: String,
+	caller: Node,
+	caller_method: String,
+	add_action_button: bool = true
+):
+	# dev commands are designed to connect to a single caller/method but
+	# technically nothing prevents them from calling multiple
+	# if the new signal already exists on globalDebug, just warn the dev
+	if self.has_signal(signal_id):
+		log_success(verbose_logging, SCRIPT_NAME, "add_dev_command",
+				"connecting a secondary caller to a pre-existing dev "+\
+				"command signal, did you mean to do this?")
+	
+	# handle error logging with a single string
+	var errstring = ""
+	
+	# normal behaviour, create signal
+	self.add_user_signal(signal_id)
+	if not self.has_signal(signal_id):
+		errstring += "signal {s} not found".format({"s": signal_id})
+	else:
+		if not caller.has_method(caller_method):
+			errstring += "method {cm} not found".format({"cm": caller_method})
+		else:
+			if self.connect(signal_id, caller, caller_method) != OK:
+				errstring += "unable to connect to {c}".format({"c": caller})
+			# if everything OK
+			else:
+				# on exiting tree remove the associated dev command
+# warning-ignore:return_value_discarded
+				if caller.connect("tree_exiting", self, "delete_dev_command",
+					[signal_id, caller, caller_method]) != OK:
+						GlobalDebug.log_error(SCRIPT_NAME, "add_dev_command",
+								"command not added, error {1} {2} {3}".format({
+									"1": signal_id,
+									"2": caller,
+									"3": caller_method,
+								}))
+				# send signal to create a devCommand struct in devActionMenu
+				emit_signal("add_new_dev_command",
+						signal_id, add_action_button)
+	
+	# any addition to err string means an error branch above was encountered
+	if errstring != "":
+		log_error(SCRIPT_NAME, "add_dev_command", errstring)
 
 
-###############################################################################
+# method to prune an unnecessary dev command
+# 1) removes signal connection
+# 2) looks for and removes signal connection to prune (step 4 above)
+# 3) removes relevant devCommand struct from devActionMenu
+# 4) removes relevant signal from globalDebug
+# [Usage]
+# Automatically called when a node linked to a dev command
+# [method params as follows]
+##1, signal_id_suffix, is
+##2, caller, is
+##3, called_method, is
+#func delete_dev_command(
+## warning-ignore:unused_argument
+## warning-ignore:unused_argument
+## warning-ignore:unused_argument
+## warning-ignore:unused_argument
+## warning-ignore:unused_argument
+#	signal_id_suffix: String,
+#	caller: Node,
+#	called_method: String
+#):
+#	pass
+
 
 # [Usage]
 # use GlobalDebug.log_error() in methods at points where you do not expect
@@ -171,12 +209,13 @@ func _ready():
 # in release builds only these arguments will be printed to console/log.
 # in debug builds, depending on developer settings, stack traces, error
 # warnings, and project pausing can be forced through this method.
-static func log_error(\
+func log_error(\
 		calling_script: String = "",\
 		calling_method: String = "",\
 		error_string: String = "") -> void:
 	# if suspending logging, stop immediately
-	if OVERRIDE_DISABLE_ALL_LOGGING:
+	if OVERRIDE_DISABLE_ALL_LOGGING\
+	or _is_test_running:
 		return
 	
 	# build error string through this method then print at end of method
@@ -244,13 +283,14 @@ static func log_error(\
 # LogSuccess is not intended as catch-all solution, it is to be used in
 # conjunction with testing, debug builds, and debugging tools such as
 # the editor debugger and inspector.
-static func log_success(
+func log_success(
 		verbose_logging_enabled: bool,\
 		calling_script: String,\
 		calling_method: String,\
 		success_string: String = "") -> void:
 	# if suspending logging, stop immediately
-	if OVERRIDE_DISABLE_ALL_LOGGING:
+	if OVERRIDE_DISABLE_ALL_LOGGING\
+	or _is_test_running:
 		return
 	
 	# log success is a debugging tool that should always be passed a bool
@@ -276,6 +316,53 @@ static func log_success(
 	print(print_string)
 
 
+# decorator for running a test function with globalDebug logging disabled
+# returns a comparison of expected outcome and the bool result of the unit test
+##1, 'unit_test', should be a function that returns a bool
+##2, 'expected_outcome', is the bool you expect the func in param1 to return
+func log_test(
+		unit_test: FuncRef,
+		expected_outcome: bool):
+	# for checking whether the funcRef is set up correctly
+	# and whether it returns a bool
+	var is_test_valid: bool
+	var test_outcome: bool
+	
+	# first, check the funcRef validity
+	is_test_valid = unit_test.is_valid()
+	
+	# if can run the test
+	if is_test_valid:
+		# disable logging then run the function
+		self._is_test_running = true
+		test_outcome = unit_test.call_func()
+		self._is_test_running = false
+		# check return argument was valid
+		if typeof(test_outcome) == TYPE_BOOL:
+			is_test_valid = true
+		else:
+			is_test_valid = false
+	
+	# logging statement for test
+	if is_test_valid:
+		var compare_outcomes = (expected_outcome == test_outcome)
+		var log_string =\
+				"SUCCESS - test outcome matches expected outcome."\
+				if compare_outcomes else\
+				"FAILURE - test outcome does not match expected outcome."
+		
+		print("DBGMGR.log_test.{x} [{r}]".format({
+			"x": str(unit_test.function),
+			"r": log_string
+		}))
+		return compare_outcomes
+	
+	# if either validation test failed
+	if not is_test_valid:
+		GlobalDebug.log_error(SCRIPT_NAME, "log_test",
+				"invalid test, is not valid funcref or does not return bool")
+
+
 # update_debug_info is a method that interfaces with the debug_info_overlay
 # child of GlobalDebug (automatically instantiated at runtime)
 # arg1 is the key for the debug item.
@@ -285,291 +372,11 @@ static func log_success(
 # arg1 shoulod always be a string key
 # arg2 can be any type, but it will be converted to string before it is set
 # to the text for the value label in the relevant debug info item container
-func update_debug_overlay(debug_item_key: String, debug_item_value):
+func update_debug_overlay(debug_item_key: String, debug_item_value) -> void:
 	# everything works, pass on the message to the canvas info overlay
 	# validation step added due to strange method-not-declared bug that
 	# ocassionally occurs
 	emit_signal("update_debug_overlay_item",
 			debug_item_key,
 			debug_item_value)
-	
-	#// DEPRECATED as globalDebug no longer keeps record of devDebugOverlay
-	
-#	else:
-#		# if the canvas wasn't found, then the overlay can't do anything
-#		# we could leave this as an unanswered signal, but then we wouldn't
-#		# know there was an instance of updates being made before the canvas
-#		# was ready, or in instances of the canvas failing to ready.
-#		log_error(SCRIPT_NAME, "update_debug_info",
-#				"dev_debug_overlay not found with "+\
-#				"[{key}]: {value}".format(
-#				{"key": debug_item_key,
-#				"value": debug_item_value})
-#				)
-
-
-##############################################################################
-
-func legacy_methods_below():
-	pass
-
-
-###############################################################################
-
-const UNIT_TEST_ENTRY_LOG_TO_CONSOLE = false
-
-var is_disk_log_called_this_runtime = false
-
-# switchable vars to control how error logging functions
-# global scope so can be changed before calling groups that will throw errors
-var debug_build_log_to_console = false #false #tempdisable
-var debug_build_log_to_disk = false
-# should always be false so removed
-#var release_build_log_to_console = false
-var release_build_log_to_disk = false
-
-var debug_build_log_to_godot_file_logger = true
-var release_build_log_to_godot_file_logger = true
-
-var unit_test_log = []
-
-
-###############################################################################
-
-
-## override of error logging for build 0.2.6
-#func log_error(error_string: String = ""):
-#	if not verbose_logging:
-#		print("debug manager raised error, enable verbose logging or run in debug mode")
-#	pass
-
-# expansion of error logging capabilities
-func log_error_ext(error_string: String = ""):
-	if verbose_logging:
-		print("global_debug calling log_error()")
-	var full_error_string = "| DBGMGR ERROR! |"
-	var full_stack_trace = get_stack()
-	# TODO IDV2 temp removal of DebugBuild stack trace decorator
-#	var error_call = full_stack_trace
-#	var error_func = "[stack func blank]"
-#	var error_node = "[stack node blank]"
-#	var error_line = "[stack line blank]"
-	# deprecated due to startup crash
-#	if full_stack_trace is Array:
-#		error_call = full_stack_trace[1]
-#		error_func = error_call["function"]
-#		error_node = error_call["source"]
-#		error_line = error_call["line"]
-#	full_error_string += (" ["+str(error_node))+"]"
-#	full_error_string += (" ["+str(error_func)+" line "+str(error_line))+"]"
-	if error_string != "":
-		full_error_string += (" |\n"+"| ERROR CODE: | "+error_string)
-	if PRINT_FULL_STACK_TRACE:
-		full_error_string += (" |\n"+"| FULL STACK TRACE: | "+str(full_stack_trace))
-#	print("temp > ", get_stack())
-#	print("temp[0] > ", get_stack()[0])
-#	print("temp[1] > ", get_stack()[1])
-	_log_error_handler(full_error_string)
-
-
-# original error logging
-func _log_error_handler(error_string):
-	if verbose_logging:
-		print("global_debug calling _log_error_handler()")
-	if OS.is_debug_build() and debug_build_log_to_console:
-		_log_error_to_console(error_string)
-
-	if OS.is_debug_build() and debug_build_log_to_disk:
-		_log_error_to_disk(error_string)
-	elif not OS.is_debug_build() and release_build_log_to_disk:
-		_log_error_to_disk(error_string)
-
-	if OS.is_debug_build() and debug_build_log_to_godot_file_logger:
-		print_debug(error_string)
-	elif not OS.is_debug_build() and release_build_log_to_godot_file_logger:
-		print_debug(error_string)
-
-
-func _log_error_to_console(error_string):
-	if verbose_logging:
-		print("global_debug calling _log_error_to_console()")
-	print(error_string)
-
-
-# NOTE: this has been superceded by godot's internal logging system,
-# which I wasn't aware of when I wrote this
-func _log_error_to_disk(error_string):
-	if verbose_logging:
-		print("global_debug calling _log_error_to_disk()")
-
-	# log cycling
-#	var current_file_content
-	if not is_disk_log_called_this_runtime:
-		# removed due to lack of globalRef
-		
-			# move log file 2 to file 3, if file 2 exists
-#		if GlobalData.validate_file_path(GlobalRef.ERROR_LOG_USER_2):
-#			current_file_content = GlobalData.open_and_return_file_as_string(GlobalRef.ERROR_LOG_USER_2)
-#			GlobalData.open_and_overwrite_file_with_string(GlobalRef.ERROR_LOG_USER_3, current_file_content, true)
-
-			# move log file 1 to file 2, if file 1 exists
-#		if GlobalData.validate_file_path(GlobalRef.ERROR_LOG_USER_1):
-#			current_file_content = GlobalData.open_and_return_file_as_string(GlobalRef.ERROR_LOG_USER_1)
-#			GlobalData.open_and_overwrite_file_with_string(GlobalRef.ERROR_LOG_USER_2, current_file_content, true)
-
-		is_disk_log_called_this_runtime = true
-	
-	# removed due to lack of globalRef
-#	GlobalData.open_and_overwrite_file_with_string(GlobalRef.ERROR_LOG_USER_1, error_string, true)
-
-
-	# on all run write to #1 disk
-	error_string = error_string
-
-
-###############################################################################
-
-
-# deprecating
-func log_unit_test(test_outcome, origin_script, test_purpose):
-	if verbose_logging:
-		print("global_debug calling log_unit_test()")
-	unit_test_log.append(test_outcome)
-	if UNIT_TEST_ENTRY_LOG_TO_CONSOLE:
-		print("outcome: "+str(test_outcome).to_upper()+" | from: "+str(origin_script)+" | purpose: "+str(test_purpose))
-
-# deprecating
-func execute_unit_test(optional_identifier_string = null):
-	if verbose_logging:
-		print("global_debug calling execute_unit_test()")
-	var print_string = ""
-
-	for test in unit_test_log:
-		if test == false:
-			print_string = "||| UNIT TEST FAILED |||"
-			if typeof(optional_identifier_string) == TYPE_STRING:
-				print_string = print_string+" | "+optional_identifier_string+" |"
-			unit_test_log.clear()
-			print(print_string)
-			return false
-
-	print_string = "||| UNIT TEST PASSED |||"
-	if typeof(optional_identifier_string) == TYPE_STRING:
-		print_string = print_string+" | "+optional_identifier_string+" |"
-	unit_test_log.clear()
-	print(print_string)
-	return true
-
-
-########
-
-
-# public method to test whether a method's actual return value matches the
-# expected return value, use for testing simple methods with a return value
-# arg 1: self (usually)
-# arg 2: an array of values to be tested, at least 2, expected to be equal
-func unit_test_comparison_of_values(\
-caller: Object,\
-comparator_values = []):
-	if verbose_logging:
-		print("global_debug calling unit_test_comparison_of_values()")
-	# check if is a valid test
-	if not comparator_values.size() <= 1:
-		var result = true
-		var last_value = null
-		var first_error_value = null
-		for value in comparator_values:
-			if last_value != null:
-				result = (result)==(value==last_value)
-				if result == false and first_error_value == null:
-					first_error_value = value
-			last_value = value
-
-		# output first line
-		var first_line_log_string = "###"+" UT Comparison of Values"
-		if result == null:
-			print(first_line_log_string + " | no result")
-		elif result == true:
-			print(first_line_log_string +\
-					" | result OUTPUT MATCHES")
-		elif result == false:
-			print(first_line_log_string +\
-					" | result OUTPUT DOES NOT MATCH")
-
-		# output second line
-		if caller.get("name"):
-			print("on object ",	str(caller), " (", str(caller.name), ")")
-		else:
-			print("on object ", str(caller))
-
-		# output third line
-		if comparator_values != null:
-			print(" | Compared Values: ", comparator_values)
-		#
-		# output fourth line
-		if first_error_value != null:
-			print(" | first non matching value: ", first_error_value)
-
-	# fail state no method / called incorrectly, log error
-	else:
-		log_error("unit_test_comparison_of_values attempted with on "\
-				+str(caller)+" but not enough values were passed. ")
-
-
-
-# public method to test whether a method's actual return value matches the
-# expected return value, use for testing simple methods with a return value
-# arg 1: self (usually)
-# arg 2: method name to be tested
-# arg 3: expected value if any
-# arg 4: values to be passed within an array
-func unit_test_expected_output_comparison(\
-caller: Object,\
-method_name: String,\
-method_values: Array = [],\
-expected_return_value = null):
-	if verbose_logging:
-		print("global_debug calling unit_test_expected_output_comparison()")
-	# check if is a valid test
-	if caller.has_method(method_name):
-		var actual_return_value = null
-		var result = null
-		actual_return_value = caller.callv(method_name, method_values)
-		# get if output of the method matches expected output
-		if expected_return_value != null:
-			result = (expected_return_value == actual_return_value)
-
-		# output first line
-		var first_line_log_string = "###"+" UT Expected Output Comparison"
-		if result == null:
-			print(first_line_log_string + " | no result")
-		elif result == true:
-			print(first_line_log_string +\
-					" | result OUTPUT MATCHES")
-		elif result == false:
-			print(first_line_log_string +\
-					" | result OUTPUT DOES NOT MATCH EXPECTED")
-
-		# output second line
-		if caller.get("name"):
-			print("on method ", method_name, " of object ",\
-					str(caller), " (", str(caller.name), ")")
-		else:
-			print("on method ", method_name, " of object ", str(caller))
-		# output third line
-		if expected_return_value != null:
-			print(" | Expected Result: ", expected_return_value)
-		# output third line
-		if actual_return_value != null:
-			print(" | Actual Result: ", actual_return_value)
-		else:
-			print(" | No Output")
-		# step output log
-		print("")
-
-	# fail state no method / called incorrectly, log error
-	else:
-		log_error("unit_test_expected_output_comparison attempted with "\
-				+method_name+" on "\
-				+str(caller)+" but method was not found ")
 

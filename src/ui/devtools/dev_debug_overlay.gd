@@ -18,17 +18,20 @@ extends Control
 # container and add its value.
 
 # TODO
-#// finish test scene/project
-#// add an open source font to ddat core, preferably a KenneyNL font
-#// add Public Function to update debug values
-#// hide default item container on init
-#// default show on debugBuild
-#// add button to show/hide on press
-#// add secondary confirmation on release builds, or toggle to disable (rw style)
 #// add support for debug values that hide over time after no updates
 #// add support for renaming debug keys
-#// add developer support for setting margin
+#// add developer support for custom adjusting/setting margin
 #// add support for text colour
+#// add support for multiple info columns
+
+#// add support for autosorting options, e.g. alphabetically by key
+#// add Public Function to update debug values
+#// add secondary toggle confirm on release builds
+#// add perma-disable (via globalDebug) option
+
+#// add support for info column categories (empty category == hide)
+#	- option(oos) category organisation; default blank enum dev can customise
+#	- subheadings and dividers
 
 # POTENTIAL BUGS
 #// what happens if multiple sources try to update a new key? will more than
@@ -40,6 +43,10 @@ extends Control
 const SCRIPT_NAME := "dev_debug_overlay"
 # for developer use, enable if making changes
 const VERBOSE_LOGGING := true
+
+#//TODO - intiialise F1 key as a new action for show/hide debug overlay
+# change this string to the project map action you wish to toggle the overlay
+const TOGGLE_OVERLAY_ACTION := "ui_home"
 
 # for standardising the an item container's key or value label name
 # useful for validating and/or fetching the correct node
@@ -77,15 +84,16 @@ func _ready():
 	
 	# set initial size based on current viewport, then prepare for
 	# any future occurence of the viewport size changing and moving elements
-	_on_viewport_resized_resize_info_overlay()
-	if get_viewport().connect("size_changed",
-			self, "_on_viewport_resized_resize_info_overlay") != OK:
-		# report error on failure to get signal
-		GlobalDebug.log_error(SCRIPT_NAME, "_ready", "view.connect")
-		setup_success_state = false
-	else:
-		GlobalDebug.log_success(VERBOSE_LOGGING,\
-				SCRIPT_NAME, "_ready", "view.connect")
+	#// deprecating, somewhat unnecessary due to godot controls auto-sizing
+#	_on_viewport_resized_resize_info_overlay()
+#	if get_viewport().connect("size_changed",
+#			self, "_on_viewport_resized_resize_info_overlay") != OK:
+#		# report error on failure to get signal
+#		GlobalDebug.log_error(SCRIPT_NAME, "_ready", "view.connect")
+#		setup_success_state = false
+#	else:
+#		GlobalDebug.log_success(VERBOSE_LOGGING,\
+#				SCRIPT_NAME, "_ready", "view.connect")
 	
 	# configure the default/template item container
 	# passed arg is default container (is child, should be readied) node ref
@@ -111,6 +119,21 @@ func _ready():
 	else:
 		GlobalDebug.log_success(VERBOSE_LOGGING,\
 				SCRIPT_NAME, "_ready", "itemcon.setup")
+	
+	# automatically show on debug builds
+	self.visible = (OS.is_debug_build())
+	# if default item container was left visible in testing, always hide it
+	if debug_item_container_default_node != null:
+		debug_item_container_default_node.visible = false
+
+
+##############################################################################
+
+
+# on recieving input to toggle the overlay, flip whether to show/hide it
+func _input(event):
+	if event.is_action_released(TOGGLE_OVERLAY_ACTION):
+		self.visible = !self.visible
 
 
 ##############################################################################
@@ -123,7 +146,7 @@ func _ready():
 func create_debug_item_container(
 			debug_item_key: String,
 			debug_item_new_value: String) -> HBoxContainer:
-	var new_debug_item_container_node
+	var new_debug_item_container_node: HBoxContainer
 	# check valid before duplicating
 	if debug_item_container_default_node == null:
 		# this should not happen
@@ -178,7 +201,7 @@ func create_debug_item_container(
 			GlobalDebug.log_error(SCRIPT_NAME, "_create_debug_item_container",
 				"debug_info_column_node.not_found")
 	
-	return debug_item_container_default_node
+	return new_debug_item_container_node
 
 
 func update_debug_item_key_label(
@@ -281,23 +304,24 @@ func _on_update_debug_overlay_item_notify_container(\
 			pass
 
 
+#// deprecating, see note in _ready
 # call on ready and whenever viewport size changes
-func _on_viewport_resized_resize_info_overlay():
-	var new_viewport_size = get_viewport().size
-	# set default sizes based on the viweport
-	debug_edge_margin_node.rect_size = new_viewport_size
-	
-	if false:
-		# set minimum bounds for item container value labels
-		var item_container_value_label_nodes =\
-				get_tree().get_nodes_in_group(GROUP_STRING_DEBUG_ITEM_LABEL_VALUE)
-		if not item_container_value_label_nodes.empty():
-			for value_label_node in item_container_value_label_nodes:
-				if value_label_node is Label:
-					# value labels for debug item containers have a minimum size
-					# set to prevent them from jumping all over the place as the
-					# value updates - by default this value is set to a small
-					# proportion of the viewport, and changed if viewport resizes
-					value_label_node.rect_min_size =\
-							new_viewport_size*DEBUG_ITEM_VALUE_MIN_SIZE_FRACTIONAL
+#func _on_viewport_resized_resize_info_overlay():
+#	var new_viewport_size = get_viewport().size
+#	# set default sizes based on the viweport
+#	debug_edge_margin_node.rect_size = new_viewport_size
+#
+#	if false:
+#		# set minimum bounds for item container value labels
+#		var item_container_value_label_nodes =\
+#				get_tree().get_nodes_in_group(GROUP_STRING_DEBUG_ITEM_LABEL_VALUE)
+#		if not item_container_value_label_nodes.empty():
+#			for value_label_node in item_container_value_label_nodes:
+#				if value_label_node is Label:
+#					# value labels for debug item containers have a minimum size
+#					# set to prevent them from jumping all over the place as the
+#					# value updates - by default this value is set to a small
+#					# proportion of the viewport, and changed if viewport resizes
+#					value_label_node.rect_min_size =\
+#							new_viewport_size*DEBUG_ITEM_VALUE_MIN_SIZE_FRACTIONAL
 
