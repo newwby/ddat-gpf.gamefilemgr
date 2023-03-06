@@ -63,7 +63,7 @@ const OPTION_MAXIMUM_SAVE_FILES := 100
 const GAME_SAVE_CLASS = GameProgressFile
 
 const SAVE_ICON_CANVAS_SCENE_PATH :=\
-		"res://src/file_manager/save_canvas/canvas_save_notification.tscn"
+		"res://src/ddat-gpf/file_manager/save_canvas/canvas_save_icon.tscn"
 
 # packed scene for instancing, and reference to the save canvas
 var save_icon_canvas_scene := preload(SAVE_ICON_CANVAS_SCENE_PATH)
