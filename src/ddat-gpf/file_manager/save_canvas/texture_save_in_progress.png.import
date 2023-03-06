@@ -2,15 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-path="res://.import/texture_save_in_progress.png-392a1d93d9373736f384a36f1b2b046f.stex"
+path="res://.import/texture_save_in_progress.png-a7924c15ae60a0df9565cf2d2342169d.stex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://src/file_manager/save_canvas/texture_save_in_progress.png"
-dest_files=[ "res://.import/texture_save_in_progress.png-392a1d93d9373736f384a36f1b2b046f.stex" ]
+source_file="res://src/ddat-gpf/file_manager/save_canvas/texture_save_in_progress.png"
+dest_files=[ "res://.import/texture_save_in_progress.png-a7924c15ae60a0df9565cf2d2342169d.stex" ]
 
 [params]
 

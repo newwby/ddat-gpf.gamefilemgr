@@ -12,22 +12,22 @@ _global_script_classes=[ {
 "base": "Resource",
 "class": "GameDataContainer",
 "language": "GDScript",
-"path": "res://src/classes/class_game_data_container.gd"
+"path": "res://src/ddat-gpf/classes/class_game_data_container.gd"
 }, {
 "base": "Node",
 "class": "GameGlobal",
 "language": "GDScript",
-"path": "res://src/classes/class_global.gd"
+"path": "res://src/ddat-gpf/classes/class_global.gd"
 }, {
 "base": "Resource",
 "class": "GameProgressFile",
 "language": "GDScript",
-"path": "res://src/file_manager/classes/class_game_progress_file.gd"
+"path": "res://src/ddat-gpf/file_manager/classes/class_game_progress_file.gd"
 }, {
 "base": "MarginContainer",
 "class": "SaveFileElement",
 "language": "GDScript",
-"path": "res://src/file_manager/game_file_load_dialog/save_file_ui_element.gd"
+"path": "res://src/ddat-gpf/file_manager/game_file_load_dialog/save_file_ui_element.gd"
 } ]
 _global_script_class_icons={
 "GameDataContainer": "",
@@ -47,10 +47,10 @@ config/icon="res://_dev/ddat_icon.png"
 
 [autoload]
 
-GlobalData="*res://src/autoload/global_data.gd"
-GlobalDebug="*res://src/autoload/global_debug.gd"
-GlobalDevTools="*res://src/autoload/global_devtools.tscn"
-GlobalProgression="*res://src/file_manager/autoload/global_progression.gd"
+GlobalData="*res://src/ddat-gpf/autoload/global_data.gd"
+GlobalDebug="*res://src/ddat-gpf/autoload/global_debug.gd"
+GlobalDevTools="*res://src/ddat-gpf/autoload/global_devtools.tscn"
+GlobalProgression="*res://src/ddat-gpf/file_manager/autoload/global_progression.gd"
 
 [debug]
 
